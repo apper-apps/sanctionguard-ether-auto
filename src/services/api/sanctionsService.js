@@ -152,25 +152,29 @@ try {
       } else {
         throw new Error('No internet connection available');
       }
-    } catch (error) {
-      // Enhanced error logging with more details
+} catch (error) {
+      // Enhanced error logging with proper error message extraction
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      
       console.error('API request failed with detailed error:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
+        message: errorMessage,
+        name: error?.name || 'UnknownError',
+        stack: error?.stack,
         apiUrl: `${API_BASE_URL}/sanctions/search`,
         apiKey: `${API_KEY.substring(0, 8)}...`,
         query: query,
-        isOnline: this.isOnline
+        isOnline: this.isOnline,
+        fullError: error,
+        errorType: typeof error
       });
       
       // Determine fallback reason with more specific messaging
-      let fallbackReason = error.message;
-      if (error.message.includes('fetch')) {
+      let fallbackReason = errorMessage;
+      if (errorMessage.includes('fetch')) {
         fallbackReason = 'Network error - unable to reach API server (possible CORS issue)';
-      } else if (error.message.includes('timeout')) {
+      } else if (errorMessage.includes('timeout')) {
         fallbackReason = 'API request timed out - server not responding';
-      } else if (error.message.includes('authentication')) {
+      } else if (errorMessage.includes('authentication')) {
         fallbackReason = 'API authentication failed - check API key';
       }
       
@@ -194,7 +198,7 @@ try {
         source: 'mock',
         fallbackReason: fallbackReason,
         apiStatus: 'error',
-        originalError: error.message
+        originalError: errorMessage // Always store as string
       };
     }
   }
@@ -229,8 +233,16 @@ async getEntityDetails(entityId) {
       } else {
         throw new Error('No internet connection available');
       }
-    } catch (error) {
-      console.warn('API request failed, falling back to mock data:', error.message);
+} catch (error) {
+      // Enhanced error handling with proper message extraction
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      
+      console.warn('API request failed, falling back to mock data:', {
+        message: errorMessage,
+        entityId: entityId,
+        fullError: error,
+        errorType: typeof error
+      });
       
       // Fallback to mock data
       const mockEntity = mockSanctionEntities.find(entity => entity.id === entityId);
@@ -240,14 +252,15 @@ async getEntityDetails(entityId) {
           success: true,
           data: mockEntity,
           source: 'mock',
-          fallbackReason: error.message
+          fallbackReason: errorMessage // Always string
         };
       }
       
       return {
         success: false,
         error: 'Entity not found in any data source',
-        data: null
+        data: null,
+        originalError: errorMessage // Store error message as string
       };
     }
   }
@@ -358,35 +371,43 @@ try {
           }
         };
       }
-    } catch (error) {
+} catch (error) {
+      // Enhanced error handling with proper error message extraction
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      
       console.error('API health check exception:', {
-        message: error.message,
-        name: error.name,
-        endpoint: `${API_BASE_URL}/health`
+        message: errorMessage,
+        name: error?.name || 'UnknownError',
+        endpoint: `${API_BASE_URL}/health`,
+        fullError: error,
+        errorType: typeof error
       });
       
-      let errorMessage = 'Failed to connect to API';
-      let details = { error: error.message };
+      let userFriendlyMessage = 'Failed to connect to API';
+      let details = { 
+        error: errorMessage,
+        originalError: errorMessage // Always store as string
+      };
       
-      if (error.message === 'Request timeout') {
-        errorMessage = 'API health check timed out (>5s)';
+      if (errorMessage === 'Request timeout') {
+        userFriendlyMessage = 'API health check timed out (>5s)';
         details.timeout = true;
-      } else if (error.message.includes('NetworkError') || error.message.includes('fetch')) {
-        errorMessage = 'Network error - API server unreachable (check CORS/firewall)';
+      } else if (errorMessage.includes('NetworkError') || errorMessage.includes('fetch')) {
+        userFriendlyMessage = 'Network error - API server unreachable (check CORS/firewall)';
         details.networkError = true;
-      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        errorMessage = 'CORS error - API server blocking browser requests';
+      } else if (error?.name === 'TypeError' && errorMessage.includes('Failed to fetch')) {
+        userFriendlyMessage = 'CORS error - API server blocking browser requests';
         details.corsError = true;
-      } else if (error.message.includes('SSL') || error.message.includes('certificate')) {
-        errorMessage = 'SSL/Certificate error - secure connection failed';
+      } else if (errorMessage.includes('SSL') || errorMessage.includes('certificate')) {
+        userFriendlyMessage = 'SSL/Certificate error - secure connection failed';
         details.sslError = true;
       } else {
-        errorMessage = `Connection failed: ${error.message}`;
+        userFriendlyMessage = `Connection failed: ${errorMessage}`;
       }
       
       return {
         status: 'error',
-        message: errorMessage,
+        message: userFriendlyMessage,
         isConnected: false,
         details: {
           ...details,

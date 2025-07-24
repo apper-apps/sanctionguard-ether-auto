@@ -23,10 +23,22 @@ const ApiStatus = () => {
         details: apiStatus.details
       });
       
-    } catch (error) {
-      console.error('API status check failed:', error);
+} catch (error) {
+      // Enhanced error handling to prevent [object Object] displays
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      console.error('API status check failed:', {
+        message: errorMessage,
+        fullError: error,
+        errorType: typeof error,
+        errorName: error?.name
+      });
+      
       setStatus("offline");
-      setStatusDetails({ message: error.message, isConnected: false });
+      setStatusDetails({ 
+        message: errorMessage, 
+        isConnected: false,
+        error: errorMessage // Ensure we always have a string message
+      });
       setLastChecked(new Date());
     }
   };
