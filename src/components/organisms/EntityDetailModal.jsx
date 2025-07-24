@@ -130,10 +130,10 @@ const EntityDetailModal = ({ entity, isOpen, onClose, loading, error }) => {
                 </div>
               </div>
 
-              <div className="mt-8">
+<div className="mt-8">
                 <h3 className="text-lg font-semibold text-white mb-4">Sanctions Programs</h3>
                 <div className="space-y-4">
-                  {entity.sanctionPrograms.map((program, index) => (
+                  {(entity.sanctionPrograms || []).map((program, index) => (
                     <div
                       key={index}
                       className="bg-surface p-4 rounded-lg border border-gray-700 flex items-center justify-between"
