@@ -143,11 +143,11 @@ class SanctionsService {
     this.searchHistory = [];
   }
 
-  async checkApiStatus() {
+async checkApiStatus() {
     // Add delay for realistic loading
     await new Promise(resolve => setTimeout(resolve, 100));
 
-try {
+    try {
       // In production, this would be:
       // const response = await fetch(`${API_BASE_URL}/status`, {
       //   headers: {
