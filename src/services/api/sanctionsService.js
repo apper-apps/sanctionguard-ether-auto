@@ -1,4 +1,6 @@
+import React from "react";
 import searchHistoryData from "@/services/mockData/searchHistory.json";
+import Error from "@/components/ui/Error";
 
 const API_BASE_URL = "https://api.dilisense.com/v1";
 const API_KEY = "gV9wIVW2LAemLdktlhzm6Y6I1Z6Lptnkga6TnC30";
@@ -99,13 +101,14 @@ class SanctionsService {
         this.searchHistory = this.searchHistory.slice(0, 10);
       }
 
-      return {
+return {
         entities: results,
         totalCount: results.length,
         searchTime: 0.3
       };
     } catch (error) {
-      throw new Error("Failed to search sanctions database. Please check your connection and try again.");
+      console.error('Search error:', error);
+      throw new Error('Failed to search entities');
     }
   }
 
