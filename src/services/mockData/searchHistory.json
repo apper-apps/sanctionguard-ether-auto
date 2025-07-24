@@ -1,0 +1,20 @@
+[
+  {
+    "Id": 1,
+    "query": "Vladimir Putin",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resultCount": 5
+  },
+  {
+    "Id": 2,
+    "query": "Sberbank",
+    "timestamp": "2024-01-15T09:45:00Z",
+    "resultCount": 12
+  },
+  {
+    "Id": 3,
+    "query": "Kim Jong Un",
+    "timestamp": "2024-01-15T09:15:00Z",
+    "resultCount": 8
+  }
+]
