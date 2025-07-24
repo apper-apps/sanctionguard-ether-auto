@@ -74,13 +74,20 @@ try {
           fallbackReason: results.fallbackReason
         });
         
-      } else {
+} else {
         throw new Error(results?.error || 'Search failed');
       }
     } catch (err) {
-      console.error('Search error:', err);
-      setError(err.message);
-      toast.error(`Search failed: ${err.message}`);
+      console.error('Search error - Message:', err.message);
+      console.error('Search error - Full details:', JSON.stringify({
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      }, null, 2));
+      
+      const errorMessage = err.message || 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(`Search failed: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -93,12 +100,21 @@ try {
     setDetailsError("");
     setEntityDetails(null);
 
-    try {
+try {
       const details = await sanctionsService.getEntityDetails(entity.id);
       setEntityDetails(details);
     } catch (err) {
-      setDetailsError(err.message);
-      toast.error("Failed to load entity details");
+      console.error('Entity details error - Message:', err.message);
+      console.error('Entity details error - Full details:', JSON.stringify({
+        message: err.message,
+        stack: err.stack,
+        name: err.name,
+        entityId: entity.id
+      }, null, 2));
+      
+      const errorMessage = err.message || 'Failed to load entity details';
+      setDetailsError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setDetailsLoading(false);
     }

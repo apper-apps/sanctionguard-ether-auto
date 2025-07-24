@@ -1,4 +1,6 @@
+import React from "react";
 import searchHistoryData from "@/services/mockData/searchHistory.json";
+import Error from "@/components/ui/Error";
 // API Configuration
 const API_BASE_URL = 'https://api.dilisense.com/v1';
 const API_KEY = 'gV9wIVW2LAemLdktlhzm6Y6I1Z6Lptnkga6TnC30';
@@ -71,15 +73,15 @@ class SanctionsService {
     }
   }
 
-  saveSearchHistory() {
+saveSearchHistory() {
     try {
       localStorage.setItem('sanctionsSearchHistory', JSON.stringify(this.searchHistory));
     } catch (error) {
       console.warn('Failed to save search history to localStorage:', error);
-}
+    }
   }
 
-async searchSanctions(query) {
+  async searchSanctions(query) {
     if (!query || query.trim() === '') {
       console.warn('Empty search query provided');
       return {
@@ -123,23 +125,20 @@ try {
           let errorMessage;
           let errorData = {};
           
-          try {
+try {
             errorData = await response.json();
             errorMessage = errorData.message || errorData.error || `HTTP ${response.status}`;
           } catch (jsonError) {
-            errorMessage = `HTTP ${response.status} ${response.statusText}`;
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
+        }
+        
+        if (!response.ok) {
+          console.error('API Error Response:', response.status, response.statusText);
+          console.error('Error Data:', JSON.stringify(errorData, null, 2));
+          console.error('Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
           
-          console.error(`API Error Response:`, {
-            status: response.status,
-            statusText: response.statusText,
-            headers: Object.fromEntries(response.headers.entries()),
-            errorData
-          });
-          
-          if (response.status === 401) {
-            throw new Error('API authentication failed - invalid API key');
-          } else if (response.status === 403) {
+          if (response.status === 403) {
             throw new Error('API access forbidden - check API permissions');
           } else if (response.status === 404) {
             throw new Error('API endpoint not found - service may be unavailable');
@@ -332,24 +331,20 @@ try {
           }
         };
       } else {
-        let errorData = {};
+let errorData = {};
         try {
           errorData = await response.json();
         } catch (jsonError) {
-          // Response not JSON, use status text
+          errorData = { message: await response.text().catch(() => 'Unknown error') };
         }
+        const responseTime = Math.round(performance.now() - startTime);
         
-        console.error('API health check failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData,
-          responseTime
-        });
+        console.error('API health check failed - Status:', response.status, response.statusText);
+        console.error('API health check failed - Error Data:', errorData);
+        console.error('API health check failed - Response Time:', responseTime + 'ms');
         
-        let message = `API error (${response.status})`;
-        if (response.status === 401) {
-          message = 'Authentication failed - invalid API key';
-        } else if (response.status === 403) {
+        let message = `API returned ${response.status}: ${response.statusText}`;
+        if (response.status === 403) {
           message = 'Access forbidden - check API permissions';
         } else if (response.status === 404) {
           message = 'Health endpoint not found - API may be down';
@@ -372,22 +367,21 @@ try {
         };
       }
 } catch (error) {
-      // Enhanced error handling with proper error message extraction
-      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      const startTime = performance.now();
+      const errorMessage = error.message || 'Unknown error occurred';
       
-      console.error('API health check exception:', {
-        message: errorMessage,
-        name: error?.name || 'UnknownError',
-        endpoint: `${API_BASE_URL}/health`,
-        fullError: error,
-        errorType: typeof error
-      });
+      console.error('API health check exception - Message:', errorMessage);
+      console.error('API health check exception - Name:', error?.name || 'UnknownError');
+      console.error('API health check exception - Endpoint:', `${API_BASE_URL}/health`);
+      console.error('API health check exception - Full Error:', JSON.stringify({
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      }, null, 2));
+      console.error('API health check exception - Error Type:', typeof error);
       
-      let userFriendlyMessage = 'Failed to connect to API';
-      let details = { 
-        error: errorMessage,
-        originalError: errorMessage // Always store as string
-      };
+      let userFriendlyMessage = errorMessage;
+      const details = {};
       
       if (errorMessage === 'Request timeout') {
         userFriendlyMessage = 'API health check timed out (>5s)';
