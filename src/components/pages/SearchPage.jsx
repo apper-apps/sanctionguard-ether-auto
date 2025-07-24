@@ -36,14 +36,16 @@ const SearchPage = () => {
     setSearchResults(null);
 
 try {
-      const results = await sanctionsService.searchEntities(query);
+      const results = await sanctionsService.searchSanctions(query);
       if (results?.success) {
         setSearchResults(results);
         loadSearchHistory(); // Refresh history after search
         
         const totalCount = results.totalCount || 0;
         const searchTime = results.searchTime || 0;
-        toast.success(`Found ${totalCount} entities in ${searchTime.toFixed(2)}s`);
+        const sourceText = results.source === 'api' ? 'from API' : results.fallbackReason ? `from cache (${results.fallbackReason})` : 'from cache';
+        
+        toast.success(`Found ${totalCount} entities in ${searchTime.toFixed(2)}s ${sourceText}`);
       } else {
         throw new Error(results?.error || 'Search failed');
       }

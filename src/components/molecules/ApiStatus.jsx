@@ -13,10 +13,10 @@ const ApiStatus = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const checkApiStatus = async () => {
+const checkApiStatus = async () => {
     try {
-      const isOnline = await sanctionsService.checkApiStatus();
-      setStatus(isOnline ? "online" : "offline");
+      const apiStatus = await sanctionsService.checkApiStatus();
+      setStatus(apiStatus.isConnected ? "online" : "offline");
       setLastChecked(new Date());
     } catch (error) {
       setStatus("offline");

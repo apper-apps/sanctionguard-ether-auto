@@ -79,7 +79,7 @@ class SanctionsService {
 }
   }
 
-  async searchSanctions(query) {
+async searchSanctions(query) {
     if (!query || query.trim() === '') {
       console.warn('Empty search query provided');
       return {
@@ -98,48 +98,57 @@ class SanctionsService {
 
     try {
       if (this.isOnline) {
-        // Try real API first
+        // Try real API first with proper error handling
         const response = await this.makeApiRequest(`/sanctions/search?q=${encodeURIComponent(query)}`);
+        
         if (response.ok) {
-          // Parse and return API response
           const data = await response.json();
-          const entities = data.results || [];
+          const entities = data.results || data.entities || [];
+          
           return {
             success: true,
             entities: entities,
-            totalCount: entities.length,
+            totalCount: data.totalCount || entities.length,
             searchTime: data.searchTime || Math.random() * 2 + 0.5,
             source: 'api'
           };
+        } else {
+          // Handle API error responses
+          const errorData = await response.json().catch(() => ({}));
+          console.warn(`API returned ${response.status}: ${errorData.message || response.statusText}`);
+          throw new Error(errorData.message || `API error: ${response.status}`);
         }
+      } else {
+        throw new Error('No internet connection available');
       }
     } catch (error) {
-      console.warn('API request failed, falling back to mock data:', error);
-    }
-
-    // Fallback to mock data
-    const mockResults = mockSanctionEntities.filter(entity => {
-      const searchableText = [
-        entity.name,
-        ...(entity.aliases || []),
-        entity.country,
-        ...(entity.sanctionPrograms || [])
-      ].join(' ').toLowerCase();
+      console.warn('API request failed, falling back to mock data:', error.message);
       
-      return searchableText.includes(normalizedQuery);
-    });
+      // Fallback to mock data with search filtering
+      const mockResults = mockSanctionEntities.filter(entity => {
+        const searchableText = [
+          entity.name,
+          ...(entity.aliases || []),
+          entity.country,
+          ...(entity.sanctionPrograms || [])
+        ].join(' ').toLowerCase();
+        
+        return searchableText.includes(normalizedQuery);
+      });
 
-    return {
-      success: true,
-      entities: mockResults,
-      totalCount: mockResults.length,
-      searchTime: Math.random() * 2 + 0.5,
-      source: 'mock'
-    };
+      return {
+        success: true,
+        entities: mockResults,
+        totalCount: mockResults.length,
+        searchTime: Math.random() * 2 + 0.5,
+        source: 'mock',
+        fallbackReason: error.message
+      };
+    }
   }
 
-  async getEntityDetails(entityId) {
-if (!entityId) {
+async getEntityDetails(entityId) {
+    if (!entityId) {
       return {
         success: false,
         error: 'Entity ID is required',
@@ -156,31 +165,39 @@ if (!entityId) {
           const data = await response.json();
           return {
             success: true,
-            data: data,
+            data: data.entity || data,
             source: 'api'
           };
+        } else {
+          // Handle API error responses
+          const errorData = await response.json().catch(() => ({}));
+          console.warn(`API returned ${response.status}: ${errorData.message || response.statusText}`);
+          throw new Error(errorData.message || `API error: ${response.status}`);
         }
+      } else {
+        throw new Error('No internet connection available');
       }
     } catch (error) {
-      console.warn('API request failed, falling back to mock data:', error);
-    }
-
-    // Fallback to mock data
-    const mockEntity = mockSanctionEntities.find(entity => entity.id === entityId);
-    
-    if (mockEntity) {
+      console.warn('API request failed, falling back to mock data:', error.message);
+      
+      // Fallback to mock data
+      const mockEntity = mockSanctionEntities.find(entity => entity.id === entityId);
+      
+      if (mockEntity) {
+        return {
+          success: true,
+          data: mockEntity,
+          source: 'mock',
+          fallbackReason: error.message
+        };
+      }
+      
       return {
-        success: true,
-        data: mockEntity,
-        source: 'mock'
-};
+        success: false,
+        error: 'Entity not found in any data source',
+        data: null
+      };
     }
-    
-    return {
-      success: false,
-      error: 'Entity not found',
-      data: null
-    };
   }
 
   addToSearchHistory(query) {
@@ -219,7 +236,7 @@ if (!entityId) {
     return true;
   }
 
-  async checkApiStatus() {
+async checkApiStatus() {
     if (!this.isOnline) {
       return {
         status: 'offline',
@@ -232,22 +249,35 @@ if (!entityId) {
       const response = await this.makeApiRequest('/health', { timeout: 5000 });
       
       if (response.ok) {
+        const healthData = await response.json().catch(() => ({}));
         return {
           status: 'connected',
-          message: 'API is operational',
-          isConnected: true
+          message: healthData.message || 'API is operational',
+          isConnected: true,
+          responseTime: healthData.responseTime
         };
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          status: 'error',
+          message: errorData.message || `API returned ${response.status} ${response.statusText}`,
+          isConnected: false
+        };
+      }
+    } catch (error) {
+      let errorMessage = 'Failed to connect to API';
+      
+      if (error.message === 'Request timeout') {
+        errorMessage = 'API request timed out';
+      } else if (error.message.includes('fetch')) {
+        errorMessage = 'Network error - unable to reach API';
+      } else {
+        errorMessage = error.message || errorMessage;
       }
       
       return {
         status: 'error',
-        message: `API returned ${response.status} ${response.statusText}`,
-        isConnected: false
-      };
-    } catch (error) {
-      return {
-        status: 'error',
-        message: error.message || 'Failed to connect to API',
+        message: errorMessage,
         isConnected: false
       };
     }
