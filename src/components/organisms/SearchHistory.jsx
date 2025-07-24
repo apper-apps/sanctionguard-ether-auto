@@ -37,9 +37,9 @@ const SearchHistory = ({ history, onHistoryClick, onClearHistory }) => {
             <p className="text-gray-500 text-xs mt-1">Your search history will appear here</p>
           </div>
         ) : (
-          history.map((item) => (
+history.map((item, index) => (
             <HistoryItem
-              key={item.Id}
+              key={item.Id || item.id || `${item.query}-${index}` || index}
               query={item}
               onClick={onHistoryClick}
             />
