@@ -120,20 +120,18 @@ try {
             source: 'api',
             apiStatus: 'connected'
           };
-        } else {
+} else {
           // Enhanced error handling with detailed response information
           let errorMessage;
           let errorData = {};
           
-try {
+          try {
             errorData = await response.json();
             errorMessage = errorData.message || errorData.error || `HTTP ${response.status}`;
           } catch (jsonError) {
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
-        }
-        
-        if (!response.ok) {
+          
           console.error('API Error Response:', response.status, response.statusText);
           console.error('Error Data:', JSON.stringify(errorData, null, 2));
           console.error('Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
