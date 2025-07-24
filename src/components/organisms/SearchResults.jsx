@@ -19,9 +19,9 @@ const SearchResults = ({
 
   if (error) {
     return <Error message={error} onRetry={onRetry} />;
-  }
+}
 
-  if (!results || results.entities.length === 0) {
+  if (!results || !results.entities || results.entities.length === 0) {
     return <Empty searchQuery={searchQuery} />;
   }
 
@@ -33,10 +33,10 @@ const SearchResults = ({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <div>
+<div>
           <h2 className="text-xl font-semibold text-white">Search Results</h2>
           <p className="text-sm text-gray-400">
-            Found {results.totalCount} entities in {results.searchTime}s
+            Found {results?.totalCount || 0} entities in {(results?.searchTime || 0).toFixed(2)}s
           </p>
         </div>
       </motion.div>
@@ -45,11 +45,11 @@ const SearchResults = ({
         className="grid gap-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
+transition={{ duration: 0.4, delay: 0.1 }}
       >
-        {results.entities.map((entity, index) => (
+        {(results?.entities || []).map((entity, index) => (
           <motion.div
-            key={entity.id}
+            key={entity?.id || index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}

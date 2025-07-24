@@ -1,5 +1,4 @@
-import searchHistoryData from '@/services/mockData/searchHistory.json';
-
+import searchHistoryData from "@/services/mockData/searchHistory.json";
 // API Configuration
 const API_BASE_URL = 'https://api.dilisense.com/v1';
 const API_KEY = 'gV9wIVW2LAemLdktlhzm6Y6I1Z6Lptnkga6TnC30';
@@ -77,15 +76,18 @@ class SanctionsService {
       localStorage.setItem('sanctionsSearchHistory', JSON.stringify(this.searchHistory));
     } catch (error) {
       console.warn('Failed to save search history to localStorage:', error);
-    }
+}
   }
 
-  async searchEntities(query) {
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+  async searchSanctions(query) {
+    if (!query || query.trim() === '') {
+      console.warn('Empty search query provided');
       return {
         success: false,
         error: 'Search query is required',
-        data: []
+        entities: [],
+        totalCount: 0,
+        searchTime: 0
       };
     }
 
@@ -98,12 +100,15 @@ class SanctionsService {
       if (this.isOnline) {
         // Try real API first
         const response = await this.makeApiRequest(`/sanctions/search?q=${encodeURIComponent(query)}`);
-        
         if (response.ok) {
+          // Parse and return API response
           const data = await response.json();
+          const entities = data.results || [];
           return {
             success: true,
-            data: data.results || [],
+            entities: entities,
+            totalCount: entities.length,
+            searchTime: data.searchTime || Math.random() * 2 + 0.5,
             source: 'api'
           };
         }
@@ -126,16 +131,19 @@ class SanctionsService {
 
     return {
       success: true,
-      data: mockResults,
+      entities: mockResults,
+      totalCount: mockResults.length,
+      searchTime: Math.random() * 2 + 0.5,
       source: 'mock'
     };
   }
 
   async getEntityDetails(entityId) {
-    if (!entityId) {
+if (!entityId) {
       return {
         success: false,
-        error: 'Entity ID is required'
+        error: 'Entity ID is required',
+        data: null
       };
     }
 
@@ -165,12 +173,13 @@ class SanctionsService {
         success: true,
         data: mockEntity,
         source: 'mock'
-      };
+};
     }
-
+    
     return {
       success: false,
-      error: 'Entity not found'
+      error: 'Entity not found',
+      data: null
     };
   }
 

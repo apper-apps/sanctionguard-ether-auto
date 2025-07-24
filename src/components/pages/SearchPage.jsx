@@ -35,12 +35,18 @@ const SearchPage = () => {
     setSearchQuery(query);
     setSearchResults(null);
 
-    try {
+try {
       const results = await sanctionsService.searchEntities(query);
-      setSearchResults(results);
-      loadSearchHistory(); // Refresh history after search
-      
-      toast.success(`Found ${results.totalCount} entities in ${results.searchTime}s`);
+      if (results?.success) {
+        setSearchResults(results);
+        loadSearchHistory(); // Refresh history after search
+        
+        const totalCount = results.totalCount || 0;
+        const searchTime = results.searchTime || 0;
+        toast.success(`Found ${totalCount} entities in ${searchTime.toFixed(2)}s`);
+      } else {
+        throw new Error(results?.error || 'Search failed');
+      }
     } catch (err) {
       setError(err.message);
       toast.error("Search failed. Please try again.");
