@@ -1,11 +1,35 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import sanctionsService from "@/services/api/sanctionsService";
 import ApperIcon from "@/components/ApperIcon";
 import StatusIndicator from "@/components/atoms/StatusIndicator";
-import sanctionsService from "@/services/api/sanctionsService";
 
 const ApiStatus = () => {
   const [status, setStatus] = useState("unknown");
   const [lastChecked, setLastChecked] = useState(null);
+  const [statusDetails, setStatusDetails] = useState(null);
+
+  const checkApiStatus = async () => {
+    try {
+      const apiStatus = await sanctionsService.checkApiStatus();
+      setStatus(apiStatus.isConnected ? "online" : "offline");
+      setStatusDetails(apiStatus);
+      setLastChecked(new Date());
+      
+      // Log detailed status for debugging
+      console.log('API Status Check:', {
+        isConnected: apiStatus.isConnected,
+        status: apiStatus.status,
+        message: apiStatus.message,
+        details: apiStatus.details
+      });
+      
+    } catch (error) {
+      console.error('API status check failed:', error);
+      setStatus("offline");
+      setStatusDetails({ message: error.message, isConnected: false });
+      setLastChecked(new Date());
+    }
+  };
 
   useEffect(() => {
     checkApiStatus();
@@ -13,25 +37,18 @@ const ApiStatus = () => {
     return () => clearInterval(interval);
   }, []);
 
-const checkApiStatus = async () => {
-    try {
-      const apiStatus = await sanctionsService.checkApiStatus();
-      setStatus(apiStatus.isConnected ? "online" : "offline");
-      setLastChecked(new Date());
-    } catch (error) {
-      setStatus("offline");
-      setLastChecked(new Date());
-    }
-  };
-
   const getStatusText = () => {
+    if (statusDetails?.message) {
+      return statusDetails.message;
+    }
+    
     switch (status) {
       case "online":
         return "API Connected";
       case "offline":
-        return "API Offline";
+        return "API Offline - Using Cache";
       default:
-        return "Checking...";
+        return "Checking API Connection...";
     }
   };
 

@@ -43,15 +43,44 @@ try {
         
         const totalCount = results.totalCount || 0;
         const searchTime = results.searchTime || 0;
-        const sourceText = results.source === 'api' ? 'from API' : results.fallbackReason ? `from cache (${results.fallbackReason})` : 'from cache';
         
-        toast.success(`Found ${totalCount} entities in ${searchTime.toFixed(2)}s ${sourceText}`);
+        // Enhanced source information with connection status
+        let sourceText = '';
+        let toastType = 'success';
+        
+        if (results.source === 'api') {
+          sourceText = 'from live API';
+          toastType = 'success';
+        } else if (results.source === 'mock') {
+          sourceText = `from cache - ${results.fallbackReason || 'API unavailable'}`;
+          toastType = 'warning';
+        }
+        
+        const message = `Found ${totalCount} entities in ${searchTime.toFixed(2)}s ${sourceText}`;
+        
+        if (toastType === 'success') {
+          toast.success(message);
+        } else {
+          toast.warning(message);
+        }
+        
+        // Log detailed search result information
+        console.log('Search completed:', {
+          query,
+          totalCount,
+          searchTime,
+          source: results.source,
+          apiStatus: results.apiStatus,
+          fallbackReason: results.fallbackReason
+        });
+        
       } else {
         throw new Error(results?.error || 'Search failed');
       }
     } catch (err) {
+      console.error('Search error:', err);
       setError(err.message);
-      toast.error("Search failed. Please try again.");
+      toast.error(`Search failed: ${err.message}`);
     } finally {
       setLoading(false);
     }

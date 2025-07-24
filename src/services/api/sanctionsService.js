@@ -96,33 +96,83 @@ async searchSanctions(query) {
     // Add to search history
     this.addToSearchHistory(query);
 
-    try {
+try {
       if (this.isOnline) {
-        // Try real API first with proper error handling
+        // Try real API first with enhanced error handling and debugging
+        console.log(`Making API request to: ${API_BASE_URL}/sanctions/search?q=${encodeURIComponent(query)}`);
+        console.log(`Using API Key: ${API_KEY.substring(0, 8)}...`);
+        
         const response = await this.makeApiRequest(`/sanctions/search?q=${encodeURIComponent(query)}`);
         
         if (response.ok) {
           const data = await response.json();
           const entities = data.results || data.entities || [];
           
+          console.log(`API Success: Received ${entities.length} entities`);
+          
           return {
             success: true,
             entities: entities,
             totalCount: data.totalCount || entities.length,
             searchTime: data.searchTime || Math.random() * 2 + 0.5,
-            source: 'api'
+            source: 'api',
+            apiStatus: 'connected'
           };
         } else {
-          // Handle API error responses
-          const errorData = await response.json().catch(() => ({}));
-          console.warn(`API returned ${response.status}: ${errorData.message || response.statusText}`);
-          throw new Error(errorData.message || `API error: ${response.status}`);
+          // Enhanced error handling with detailed response information
+          let errorMessage;
+          let errorData = {};
+          
+          try {
+            errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || `HTTP ${response.status}`;
+          } catch (jsonError) {
+            errorMessage = `HTTP ${response.status} ${response.statusText}`;
+          }
+          
+          console.error(`API Error Response:`, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            errorData
+          });
+          
+          if (response.status === 401) {
+            throw new Error('API authentication failed - invalid API key');
+          } else if (response.status === 403) {
+            throw new Error('API access forbidden - check API permissions');
+          } else if (response.status === 404) {
+            throw new Error('API endpoint not found - service may be unavailable');
+          } else if (response.status >= 500) {
+            throw new Error(`API server error (${response.status}) - service temporarily unavailable`);
+          } else {
+            throw new Error(`API error (${response.status}): ${errorMessage}`);
+          }
         }
       } else {
         throw new Error('No internet connection available');
       }
     } catch (error) {
-      console.warn('API request failed, falling back to mock data:', error.message);
+      // Enhanced error logging with more details
+      console.error('API request failed with detailed error:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        apiUrl: `${API_BASE_URL}/sanctions/search`,
+        apiKey: `${API_KEY.substring(0, 8)}...`,
+        query: query,
+        isOnline: this.isOnline
+      });
+      
+      // Determine fallback reason with more specific messaging
+      let fallbackReason = error.message;
+      if (error.message.includes('fetch')) {
+        fallbackReason = 'Network error - unable to reach API server (possible CORS issue)';
+      } else if (error.message.includes('timeout')) {
+        fallbackReason = 'API request timed out - server not responding';
+      } else if (error.message.includes('authentication')) {
+        fallbackReason = 'API authentication failed - check API key';
+      }
       
       // Fallback to mock data with search filtering
       const mockResults = mockSanctionEntities.filter(entity => {
@@ -142,7 +192,9 @@ async searchSanctions(query) {
         totalCount: mockResults.length,
         searchTime: Math.random() * 2 + 0.5,
         source: 'mock',
-        fallbackReason: error.message
+        fallbackReason: fallbackReason,
+        apiStatus: 'error',
+        originalError: error.message
       };
     }
   }
@@ -245,40 +297,102 @@ async checkApiStatus() {
       };
     }
 
-    try {
+try {
+      console.log(`Checking API health at: ${API_BASE_URL}/health`);
+      const startTime = performance.now();
       const response = await this.makeApiRequest('/health', { timeout: 5000 });
+      const responseTime = Math.round(performance.now() - startTime);
       
       if (response.ok) {
         const healthData = await response.json().catch(() => ({}));
+        console.log('API health check successful:', healthData);
+        
         return {
           status: 'connected',
-          message: healthData.message || 'API is operational',
+          message: `API operational ${healthData.version ? `(v${healthData.version})` : ''} - ${responseTime}ms`,
           isConnected: true,
-          responseTime: healthData.responseTime
+          responseTime: responseTime,
+          details: {
+            endpoint: `${API_BASE_URL}/health`,
+            apiKey: `${API_KEY.substring(0, 8)}...`,
+            timestamp: new Date().toISOString()
+          }
         };
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (jsonError) {
+          // Response not JSON, use status text
+        }
+        
+        console.error('API health check failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          responseTime
+        });
+        
+        let message = `API error (${response.status})`;
+        if (response.status === 401) {
+          message = 'Authentication failed - invalid API key';
+        } else if (response.status === 403) {
+          message = 'Access forbidden - check API permissions';
+        } else if (response.status === 404) {
+          message = 'Health endpoint not found - API may be down';
+        } else if (response.status >= 500) {
+          message = `Server error (${response.status}) - API temporarily unavailable`;
+        } else if (errorData.message) {
+          message = `${errorData.message} (${response.status})`;
+        }
+        
         return {
           status: 'error',
-          message: errorData.message || `API returned ${response.status} ${response.statusText}`,
-          isConnected: false
+          message: message,
+          isConnected: false,
+          details: {
+            httpStatus: response.status,
+            statusText: response.statusText,
+            responseTime: responseTime,
+            endpoint: `${API_BASE_URL}/health`
+          }
         };
       }
     } catch (error) {
+      console.error('API health check exception:', {
+        message: error.message,
+        name: error.name,
+        endpoint: `${API_BASE_URL}/health`
+      });
+      
       let errorMessage = 'Failed to connect to API';
+      let details = { error: error.message };
       
       if (error.message === 'Request timeout') {
-        errorMessage = 'API request timed out';
-      } else if (error.message.includes('fetch')) {
-        errorMessage = 'Network error - unable to reach API';
+        errorMessage = 'API health check timed out (>5s)';
+        details.timeout = true;
+      } else if (error.message.includes('NetworkError') || error.message.includes('fetch')) {
+        errorMessage = 'Network error - API server unreachable (check CORS/firewall)';
+        details.networkError = true;
+      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        errorMessage = 'CORS error - API server blocking browser requests';
+        details.corsError = true;
+      } else if (error.message.includes('SSL') || error.message.includes('certificate')) {
+        errorMessage = 'SSL/Certificate error - secure connection failed';
+        details.sslError = true;
       } else {
-        errorMessage = error.message || errorMessage;
+        errorMessage = `Connection failed: ${error.message}`;
       }
       
       return {
         status: 'error',
         message: errorMessage,
-        isConnected: false
+        isConnected: false,
+        details: {
+          ...details,
+          endpoint: `${API_BASE_URL}/health`,
+          timestamp: new Date().toISOString()
+        }
       };
     }
   }

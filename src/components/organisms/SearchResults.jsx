@@ -35,9 +35,28 @@ const SearchResults = ({
       >
 <div>
           <h2 className="text-xl font-semibold text-white">Search Results</h2>
-          <p className="text-sm text-gray-400">
-            Found {results?.totalCount || 0} entities in {(results?.searchTime || 0).toFixed(2)}s
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-gray-400">
+              Found {results?.totalCount || 0} entities in {(results?.searchTime || 0).toFixed(2)}s
+            </p>
+            {results?.source && (
+              <div className="flex items-center gap-1">
+                <div className={`w-2 h-2 rounded-full ${
+                  results.source === 'api' ? 'bg-green-500' : 'bg-yellow-500'
+                }`} />
+                <span className={`text-xs font-medium ${
+                  results.source === 'api' ? 'text-green-400' : 'text-yellow-400'
+                }`}>
+                  {results.source === 'api' ? 'Live API' : 'Cached Data'}
+                </span>
+                {results.fallbackReason && (
+                  <span className="text-xs text-gray-500" title={results.fallbackReason}>
+                    ({results.fallbackReason.split(' - ')[0]})
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </motion.div>
 
